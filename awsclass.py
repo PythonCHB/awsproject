@@ -8,7 +8,6 @@ from configparser import ConfigParser
 
 class Aws():
     def __init__(self):
-        # self.myvpc = "vpc-8089aee4"
         awscfg = ConfigParser()
         awscfg.read("/home/ec2-user/.aws/credentials")
         self.region = awscfg.get("default", "region")
