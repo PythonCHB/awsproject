@@ -131,7 +131,7 @@ def create_inst():
     try:
         # newinst = ec2r.create_instances(ImageId=myami, MinCount=1, MaxCount=1, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
         # ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": instname}])
-        newinst = ec2c.run_instances(ImageId=myami, MinCount=1, MaxCount=1, KeyName = mykey, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
+        newinst = ec2c.run_instances(ImageId=myami, MinCount=1, MaxCount=1, KeyName=mykey, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
         ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
         print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], instname))
     except boto3.exceptions.botocore.client.ClientError as e:
