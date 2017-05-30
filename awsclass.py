@@ -71,8 +71,6 @@ class Aws():
         self.instname = instname
 
         try:
-            # newinst = self.ec2r.create_instances(ImageId=self.myami, MinCount=1, MaxCount=1, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
-            # self.ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": self.instname}])
             newinst = self.ec2c.run_instances(ImageId=self.myami, MinCount=1, MaxCount=1, KeyName=self.mykey, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
             self.ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
             print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], self.instname))
@@ -121,11 +119,12 @@ class Aws():
 # List EC2 instances function
 
     def list_inst(self):
-        listinst = self.ec2r.instances.all()
+        listinst = self.ec2c.describe_instances()
         dcinst = {}
-        for i in listinst:
-            print("ID: {0}  Name: {1}  Type: {2}  State: {3}".format(i.id, i.tags[0]["Value"], i.instance_type, i.state["Name"]))
-            dcinst[i.id] = i.tags[0]["Value"]
+        for res in listinst["Reservations"]:
+            for inst in res["Instances"]:
+                print("ID: {InstanceId} Type: {InstanceType} Name: {Tags[0][Value]} State: {State[Name]}".format(**inst))
+                dcinst.update({inst["Tags"][0]["Value"]:inst["State"]["Name"]})
         return(dcinst)
 
 # Rename an EC2 instance function
