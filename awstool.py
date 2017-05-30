@@ -23,6 +23,7 @@ from configparser import ConfigParser
 awscfg = ConfigParser()
 awscfg.read("/home/ec2-user/.aws/credentials")
 region = awscfg.get("default", "region")
+mykey = awscfg.get("default", "key")
 mysg = awscfg.get("default", "secgroup")
 myami = awscfg.get("default", "ami")
 ec2type = awscfg.get("default", "ec2type")
@@ -128,9 +129,11 @@ def create_inst():
     instname = input("Enter the name: ").strip()
 
     try:
-        newinst = ec2r.create_instances(ImageId=myami, MinCount=1, MaxCount=1, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
-        ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": instname}])
-        print("\nThe instance ID created was {} and is named {}".format(newinst[0].id, instname))
+        # newinst = ec2r.create_instances(ImageId=myami, MinCount=1, MaxCount=1, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
+        # ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": instname}])
+        newinst = ec2c.run_instances(ImageId=myami, MinCount=1, MaxCount=1, KeyName = mykey, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
+        ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
+        print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], instname))
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
 

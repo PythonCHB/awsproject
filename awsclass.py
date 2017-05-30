@@ -11,6 +11,7 @@ class Aws():
         awscfg = ConfigParser()
         awscfg.read("/home/ec2-user/.aws/credentials")
         self.region = awscfg.get("default", "region")
+        self.mykey = awscfg.get("default", "key")
         self.mysg = awscfg.get("default", "secgroup")
         self.myami = awscfg.get("default", "ami")
         self.ec2type = awscfg.get("default", "ec2type")
@@ -70,13 +71,15 @@ class Aws():
         self.instname = instname
 
         try:
-            newinst = self.ec2r.create_instances(ImageId=self.myami, MinCount=1, MaxCount=1, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
-            self.ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": self.instname}])
-            print("\nThe instance ID created was {} and is named {}".format(newinst[0].id, self.instname))
+            # newinst = self.ec2r.create_instances(ImageId=self.myami, MinCount=1, MaxCount=1, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
+            # self.ec2c.create_tags(Resources=[newinst[0].id], Tags=[{"Key": "Name", "Value": self.instname}])
+            newinst = self.ec2c.run_instances(ImageId=self.myami, MinCount=1, MaxCount=1, KeyName = self.mykey, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
+            self.ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
+            print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], self.instname))
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-        return(newinst[0].id)
+        return(newinst["Instances"][0]["InstanceId"])
 
 # Start and stop EC2 instances functions
 
