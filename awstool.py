@@ -58,7 +58,7 @@ Type 'ilist' to list the instances
 Type 'iren' to rename an instance
 Type 'calb' to create an ALB
 Type 'lalb' to list the ALBs
-Type "dalb to delete an ALB
+Type 'dalb' to delete an ALB
 Type 'ctg' to create a target group
 Type 'ckey' to create a key pair
 Type 'lkey' to list key pairs
@@ -71,6 +71,19 @@ Type 'x' to exit
 
 """
 
+# User data for instance building
+
+userdata = """#cloud-config
+repo_update: true
+repo_upgrade: all
+
+packages:
+ - nginx
+
+runcmd:
+ - sudo yum update
+ - service nginx start
+"""
 
 # Main prompt
 
@@ -142,7 +155,7 @@ def create_inst():
     instname = input("Enter the name: ").strip()
 
     try:
-        newinst = ec2c.run_instances(ImageId=myami, MinCount=1, MaxCount=1, KeyName=mykey, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid)
+        newinst = ec2c.run_instances(ImageId=myami, MinCount=1, MaxCount=1, KeyName=mykey, InstanceType=ec2type, SecurityGroupIds=[mysg], SubnetId=subid, UserData=userdata)
         ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
         print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], instname))
     except boto3.exceptions.botocore.client.ClientError as e:
@@ -193,7 +206,7 @@ def list_inst():
     dcinst = {}
     for res in listinst["Reservations"]:
         for inst in res["Instances"]:
-            print("ID: {InstanceId}  Type: {InstanceType}  Name: {Tags[0][Value]}  State: {State[Name]}  AZ: {Placement[AvailabilityZone]}".format(**inst))
+            print("ID: {InstanceId}  Type: {InstanceType}  AZ: {Placement[AvailabilityZone]}  State: {State[Name]}  Name: {Tags[0][Value]}".format(**inst))
             dcinst.update({inst["State"]["Name"]:inst["Tags"][0]["Value"]})
     return(dcinst)
 
@@ -234,9 +247,15 @@ def create_alb():
 
 def create_target_group():
     tgname = input("Enter the name of the target group: ").strip()
+    list_inst()
+    inst1 = input("Enter the first instance for the group: ").strip()
+    inst2 = input("Enter the second instance for the group: ").strip()
+    inst3 = input("Enter the third instance for the group: ").strip()
 
     try:
         newtg = elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=myvpc)
+        tgarn = newtg["TargetGroups"][0]["TargetGroupArn"]
+        elbv2c.register_targets(TargetGroupArn=tgarn, Targets=[{"Id":inst1},{"Id":inst2},{"Id":inst3}])
         print("Target group created. The target group name is {}".format(newtg["TargetGroups"][0]["TargetGroupName"]))
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
