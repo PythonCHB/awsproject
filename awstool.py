@@ -38,6 +38,7 @@ ec2r = boto3.resource("ec2")
 ec2c = boto3.client("ec2")
 s3r = boto3.resource("s3")
 s3c = boto3.client("s3")
+elbv2c = boto3.client("elbv2")
 
 vpc = ec2r.Vpc(myvpc)
 
@@ -55,6 +56,10 @@ Type 'istop' to stop an instance
 Type 'iterm' to terminate an instance
 Type 'ilist' to list the instances
 Type 'iren' to rename an instance
+Type 'calb' to create an ALB
+Type 'lalb' to list the ALBs
+Type "dalb to delete an ALB
+Type 'ctg' to create a target group
 Type 'ckey' to create a key pair
 Type 'lkey' to list key pairs
 Type 'dkey' to delete a key pair
@@ -106,11 +111,10 @@ def delete_subnet():
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
 
+# List all VPC subnets function
 
-# List VPC subnets function
 
-
-def list_subnets():
+def list_subnets_all():
     listsub = ec2c.describe_subnets()
     lsdict = {}
 
@@ -120,11 +124,20 @@ def list_subnets():
         lsdict[sub["SubnetId"]] = sub["CidrBlock"]
     return(lsdict)
 
+# List subnets for a particular AZ function
+
+
+def list_subnets_az(subaz):
+    listsubaz = ec2c.describe_subnets(Filters=[{"Name": "availabilityZone", "Values": [subaz]}])
+
+    for sub in listsubaz["Subnets"]:
+        print("Subnet ID = {SubnetId} with CIDR of {CidrBlock} in AZ {AvailabilityZone} with {AvailableIpAddressCount} available IPs".format(**sub))
+
 # Create new EC2 instances function
 
 
 def create_inst():
-    list_subnets()
+    list_subnets_all()
     subid = input("Enter the subnet ID: ").strip()
     instname = input("Enter the name: ").strip()
 
@@ -180,7 +193,7 @@ def list_inst():
     dcinst = {}
     for res in listinst["Reservations"]:
         for inst in res["Instances"]:
-            print("ID: {InstanceId} Type: {InstanceType} Name: {Tags[0][Value]} State: {State[Name]}".format(**inst))
+            print("ID: {InstanceId}  Type: {InstanceType}  Name: {Tags[0][Value]}  State: {State[Name]}  AZ: {Placement[AvailabilityZone]}".format(**inst))
             dcinst.update({inst["State"]["Name"]:inst["Tags"][0]["Value"]})
     return(dcinst)
 
@@ -198,7 +211,59 @@ def ren_inst():
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
 
-# Create a key pair
+# Create an Application Load Balancer function
+
+
+def create_alb():
+    albname = input("Enter the name of the ALB: ").strip()
+    list_subnets_az("us-west-2a")
+    sub1 = input("Enter the subnet for {}a: ".format(region)).strip()
+    list_subnets_az("us-west-2b")
+    sub2 = input("Enter the subnet for {}b: ".format(region)).strip()
+    list_subnets_az("us-west-2c")
+    sub3 = input("Enter the subnet for {}c: ".format(region)).strip()
+    
+    try:
+        newalb = elbv2c.create_load_balancer(Name=albname, Subnets=[sub1, sub2, sub3], SecurityGroups=[mysg], Scheme="internet-facing", IpAddressType="ipv4")
+        print("ALB created. The DNS name is {}".format(newalb["LoadBalancers"][0]["DNSName"]))
+    except boto3.exceptions.botocore.client.ClientError as e:
+        print(e.response["Error"]["Message"].strip("\""))
+
+# Create an ALB target group function
+
+
+def create_target_group():
+    tgname = input("Enter the name of the target group: ").strip()
+
+    try:
+        newtg = elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=myvpc)
+        print("Target group created. The target group name is {}".format(newtg["TargetGroups"][0]["TargetGroupName"]))
+    except boto3.exceptions.botocore.client.ClientError as e:
+        print(e.response["Error"]["Message"].strip("\""))
+
+# List Application Load Balancers function
+
+
+def list_alb():
+    listalb = elbv2c.describe_load_balancers()
+
+    for alb in listalb["LoadBalancers"]:
+        print("LB Name = {LoadBalancerName}  DNS Name = {DNSName}".format(**alb))
+
+# Delete an Application Load Balancer function
+
+
+def delete_alb():
+    list_alb()
+    albname = input("Enter the ALB name: ").strip()
+    albarn = elbv2c.describe_load_balancers(Names=[albname])["LoadBalancers"][0]["LoadBalancerArn"]
+    try:
+        elbv2c.delete_load_balancer(LoadBalancerArn=albarn)
+        print("ALB {} deleted.".format(albname))
+    except boto3.exceptions.botocore.client.ClientError as e:
+        print(e.response["Error"]["Message"].strip("\""))
+
+# Create a key pair function
 
 
 def create_keypair():
@@ -300,13 +365,17 @@ if __name__ == "__main__":
 
     select_dict = {"csub": create_subnet,
                    "dsub": delete_subnet,
-                   "lsub": list_subnets,
+                   "lsub": list_subnets_all,
                    "imake": create_inst,
                    "istart": start_inst,
                    "istop": stop_inst,
                    "iterm": term_inst,
                    "ilist": list_inst,
                    "iren": ren_inst,
+                   "calb": create_alb,
+                   "lalb": list_alb,
+                   "dalb": delete_alb,
+                   "ctg": create_target_group,
                    "ckey": create_keypair,
                    "lkey": list_keypair,
                    "dkey": delete_keypair,
