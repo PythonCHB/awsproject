@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from awsclass import Aws
+import time
 
 d = Aws()
 
@@ -22,3 +23,28 @@ tg = d.create_target_group("web-tg", inst1, inst2, inst3)
 
 print("\n** Creating Application Load Balancer **")
 alb = d.create_alb("web-alb", sub1, sub2, sub3, tg)
+
+print("\n** Pausing for one minute **")
+time.sleep(60)
+
+print("\n** Deleting Application Load Balancer **")
+dalb = d.delete_alb("web-alb")
+
+print("\n** Deleting ALB target group **")
+dtg = d.delete_target_group("web-tg")
+
+print("\n** Terminating instances **")
+dinst1 = d.term_inst(inst1)
+dinst2 = d.term_inst(inst2)
+dinst3 = d.term_inst(inst3)
+
+print("\n** Pausing for one minute **")
+time.sleep(120)
+
+print("\n** Deleting subnets **")
+dsub1 = d.delete_subnet(sub1)
+dsub2 = d.delete_subnet(sub2)
+dsub3 = d.delete_subnet(sub3)
+
+print("\n** Deleting keypair **")
+dkey = d.delete_keypair(mykey)
