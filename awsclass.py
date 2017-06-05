@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 
+""" AWS Class Tool by Paul Casey
+
+This program is an AWS class utility that performs the following:
+
+- Create, list, and delete subnets in the VPC
+- Create, list, and delete S3 buckets. Also list the files in the buckets
+- Create, list, and rename EC2 instances
+- Start, stop, and terminate EC2 instances
+- Create, list, and delete EC2 keypair
+- Create, list and delete Application Load Balancers
+
+"""
+
 # Import Modules
 
 import boto3
@@ -21,8 +34,21 @@ class Aws():
         self.ec2c = boto3.client("ec2")
         self.s3r = boto3.resource("s3")
         self.s3c = boto3.client("s3")
+        self.elbv2c = boto3.client("elbv2")
 
         self.vpc = self.ec2r.Vpc(self.myvpc)
+
+        self.userdata = """#cloud-config
+repo_update: true
+repo_upgrade: all
+
+packages:
+ - nginx
+
+runcmd:
+ - sudo yum update
+ - service nginx start
+"""
 
 # Create VPC subnet function
 
@@ -34,10 +60,9 @@ class Aws():
             newsub = self.vpc.create_subnet(CidrBlock=subnetvar, AvailabilityZone=az)
             self.vpc.create_tags(Resources=[newsub.id], Tags=[{"Key": "Name", "Value": "subnet-{}-{}".format(newsub.availability_zone[-2:], newsub.cidr_block.split(".")[2])}])
             print("\nThe subnet ID created was {}".format(newsub.id))
+            return(newsub.id)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(newsub.id)
 
 # Delete VPC subnet function
 
@@ -47,18 +72,31 @@ class Aws():
         try:
             self.ec2c.delete_subnet(SubnetId=subid)
             print("\nThe subnet {} was deleted.".format(subid))
+            return(subid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-        return(subid)
-
 # List VPC subnets function
 
-    def list_subnets(self):
+    def list_subnets_all(self):
         listsub = self.ec2c.describe_subnets()
         lsdict = {}
 
         for sub in listsub["Subnets"]:
+            print("Subnet ID = {SubnetId} with CIDR of {CidrBlock} in AZ {AvailabilityZone} with {AvailableIpAddressCount} available IPs".format(**sub))
+            lsdict[sub["SubnetId"]] = sub["CidrBlock"]
+
+        return(lsdict)
+
+# List subnets for a particular AZ function
+
+    def list_subnets_az(self, subaz):
+        self.subaz = subaz
+        lsdict = {}
+
+        listsubaz = self.ec2c.describe_subnets(Filters=[{"Name": "availabilityZone", "Values": [self.subaz]}])
+
+        for sub in listsubaz["Subnets"]:
             print("Subnet ID = {SubnetId} with CIDR of {CidrBlock} in AZ {AvailabilityZone} with {AvailableIpAddressCount} available IPs".format(**sub))
             lsdict[sub["SubnetId"]] = sub["CidrBlock"]
 
@@ -71,13 +109,12 @@ class Aws():
         self.instname = instname
 
         try:
-            newinst = self.ec2c.run_instances(ImageId=self.myami, MinCount=1, MaxCount=1, KeyName=self.mykey, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid)
+            newinst = self.ec2c.run_instances(ImageId=self.myami, MinCount=1, MaxCount=1, KeyName=self.mykey, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid, UserData=self.userdata)
             self.ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
             print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], self.instname))
+            return(newinst["Instances"][0]["InstanceId"])
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(newinst["Instances"][0]["InstanceId"])
 
 # Start and stop EC2 instances functions
 
@@ -87,10 +124,9 @@ class Aws():
         try:
             self.ec2c.start_instances(InstanceIds=[self.instid])
             print("Started instance {}".format(self.instid))
+            return(instid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(instid)
 
     def stop_inst(self, instid):
         self.instid = instid
@@ -98,10 +134,9 @@ class Aws():
         try:
             self.ec2c.stop_instances(InstanceIds=[instid])
             print("Stopped instance {}".format(instid))
+            return(instid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(instid)
 
 # Terminate EC2 instances function
 
@@ -111,10 +146,9 @@ class Aws():
         try:
             self.ec2c.terminate_instances(InstanceIds=[instid])
             print("Terminated instance {}".format(instid))
+            return(instid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(instid)
 
 # List EC2 instances function
 
@@ -124,7 +158,7 @@ class Aws():
         for res in listinst["Reservations"]:
             for inst in res["Instances"]:
                 print("ID: {InstanceId} Type: {InstanceType} Name: {Tags[0][Value]} State: {State[Name]}".format(**inst))
-                dcinst.update({inst["Tags"][0]["Value"]:inst["State"]["Name"]})
+                dcinst.update({inst["Tags"][0]["Value"]: inst["State"]["Name"]})
         return(dcinst)
 
 # Rename an EC2 instance function
@@ -136,12 +170,95 @@ class Aws():
         try:
             self.ec2c.create_tags(Resources=[instid], Tags=[{"Key": "Name", "Value": newname}])
             print("The instance was renamed to {}".format(newname))
+            return(instid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-        return(instid)
+# Create an Application Load Balancer function
 
-# Create a key pair
+    def create_alb(self, albname, sub1, sub2, sub3, tgname):
+        self.albname = albname
+        self.sub1 = sub1
+        self.sub2 = sub2
+        self.sub3 = sub3
+        self.tgname = tgname
+
+        tgarn = self.elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
+
+        try:
+            newalb = self.elbv2c.create_load_balancer(Name=albname, Subnets=[sub1, sub2, sub3], SecurityGroups=[self.mysg], Scheme="internet-facing", IpAddressType="ipv4")
+            self.elbv2c.create_listener(LoadBalancerArn=newalb["LoadBalancers"][0]["LoadBalancerArn"], Protocol="HTTP", Port=80, DefaultActions=[{"Type": "forward", "TargetGroupArn": tgarn}])
+            print("ALB created. The DNS name is {}".format(newalb["LoadBalancers"][0]["DNSName"]))
+        except boto3.exceptions.botocore.client.ClientError as e:
+            print(e.response["Error"]["Message"].strip("\""))
+
+# List Application Load Balancers function
+
+    def list_alb(self):
+        listalb = self.elbv2c.describe_load_balancers()
+        ladict = {}
+
+        for alb in listalb["LoadBalancers"]:
+            print("LB Name = {LoadBalancerName}  DNS Name = {DNSName}".format(**alb))
+            ladict[alb["LoadBalancerName"]] = alb["DNSName"]
+
+        return(ladict)
+
+# Delete an Application Load Balancer function
+
+    def delete_alb(self, albname):
+        self.albname = albname
+
+        albarn = self.elbv2c.describe_load_balancers(Names=[albname])["LoadBalancers"][0]["LoadBalancerArn"]
+
+        try:
+            self.elbv2c.delete_load_balancer(LoadBalancerArn=albarn)
+            print("ALB {} deleted.".format(albname))
+            return(albarn)
+        except boto3.exceptions.botocore.client.ClientError as e:
+            print(e.response["Error"]["Message"].strip("\""))
+
+# Create an ALB target group function
+
+    def create_target_group(self, tgname, inst1, inst2, inst3):
+        self.tgname = tgname
+        self.inst1 = inst1
+        self.inst2 = inst2
+        self.inst3 = inst3
+
+        try:
+            newtg = self.elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=self.myvpc)
+            tgarn = newtg["TargetGroups"][0]["TargetGroupArn"]
+            self.elbv2c.register_targets(TargetGroupArn=tgarn, Targets=[{"Id": inst1}, {"Id": inst2}, {"Id": inst3}])
+            print("Target group created. The target group name is {}".format(newtg["TargetGroups"][0]["TargetGroupName"]))
+        except boto3.exceptions.botocore.client.ClientError as e:
+            print(e.response["Error"]["Message"].strip("\""))
+
+        return(tgarn)
+
+# List ALB target groups function
+
+    def list_target_groups(self):
+        listtg = self.elbv2c.describe_target_groups()
+
+        for tg in listtg["TargetGroups"]:
+            print("TG Name = {TargetGroupName}  ARN = {TargetGroupArn}".format(**tg))
+
+# Delete ALB target group function
+
+    def delete_target_group(self, tgname):
+        self.tgname = tgname
+
+        tgarn = self.elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
+
+        try:
+            self.elbv2c.delete_target_group(TargetGroupArn=tgarn)
+            print("Target group {} deleted.".format(tgname))
+            return(tgarn)
+        except boto3.exceptions.botocore.client.ClientError as e:
+            print(e.response["Error"]["Message"].strip("\""))
+
+# Create a key pair function
 
     def create_keypair(self, keyname):
         self.keyname = keyname
@@ -150,12 +267,11 @@ class Aws():
             key = self.ec2c.create_key_pair(KeyName=keyname)
             print("\nKey pair created. The following is the key:\n")
             print(key["KeyMaterial"])
+            return(key["KeyMaterial"])
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-        return(key["KeyMaterial"])
-
-# List key pairs
+# List key pairs function
 
     def list_keypair(self):
         listkey = self.ec2c.describe_key_pairs()
@@ -175,10 +291,9 @@ class Aws():
         try:
             self.ec2c.delete_key_pair(KeyName=keyname)
             print("\nThe key pair {} was deleted.".format(keyname))
+            return(keyname)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(keyname)
 
 # Create S3 bucket function
 
@@ -188,12 +303,11 @@ class Aws():
         try:
             newbuck = self.s3c.create_bucket(Bucket=buckname, CreateBucketConfiguration={"LocationConstraint": self.region})
             print("\nBucket {Location} was created successfully.".format(**newbuck))
+            return(newbuck["Location"])
         except boto3.exceptions.botocore.exceptions.ParamValidationError as e:
             print(e)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(newbuck["Location"])
 
 # Delete S3 bucket function
 
@@ -203,12 +317,11 @@ class Aws():
         try:
             self.s3c.delete_bucket(Bucket=buckname)
             print("Bucket {} was deleted successfully.".format(buckname))
+            return(buckname)
         except boto3.exceptions.botocore.exceptions.ParamValidationError as e:
             print(e)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
-
-        return(buckname)
 
 # List S3 buckets function
 

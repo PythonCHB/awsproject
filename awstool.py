@@ -8,6 +8,8 @@ This program is a menu-driven AWS utility that performs the following:
 - Create, list, and delete S3 buckets. Also list the files in the buckets
 - Create, list, and rename EC2 instances
 - Start, stop, and terminate EC2 instances
+- Create, list, and delete EC2 keypair
+- Create, list and delete Application Load Balancers
 
 """
 
@@ -60,6 +62,8 @@ Type 'calb' to create an ALB
 Type 'lalb' to list the ALBs
 Type 'dalb' to delete an ALB
 Type 'ctg' to create a target group
+Type 'ltg' to list target groups
+Type 'dtg' to delete a target group
 Type 'ckey' to create a key pair
 Type 'lkey' to list key pairs
 Type 'dkey' to delete a key pair
@@ -207,7 +211,7 @@ def list_inst():
     for res in listinst["Reservations"]:
         for inst in res["Instances"]:
             print("ID: {InstanceId}  Type: {InstanceType}  AZ: {Placement[AvailabilityZone]}  State: {State[Name]}  Name: {Tags[0][Value]}".format(**inst))
-            dcinst.update({inst["State"]["Name"]:inst["Tags"][0]["Value"]})
+            dcinst.update({inst["State"]["Name"]: inst["Tags"][0]["Value"]})
     return(dcinst)
 
 # Rename an EC2 instance function
@@ -235,28 +239,14 @@ def create_alb():
     sub2 = input("Enter the subnet for {}b: ".format(region)).strip()
     list_subnets_az("us-west-2c")
     sub3 = input("Enter the subnet for {}c: ".format(region)).strip()
-    
+    list_target_groups()
+    tgname = input("Enter the target group: ").strip()
+    tgarn = elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
+
     try:
         newalb = elbv2c.create_load_balancer(Name=albname, Subnets=[sub1, sub2, sub3], SecurityGroups=[mysg], Scheme="internet-facing", IpAddressType="ipv4")
+        elbv2c.create_listener(LoadBalancerArn=newalb["LoadBalancers"][0]["LoadBalancerArn"], Protocol="HTTP", Port=80, DefaultActions=[{"Type": "forward", "TargetGroupArn": tgarn}])
         print("ALB created. The DNS name is {}".format(newalb["LoadBalancers"][0]["DNSName"]))
-    except boto3.exceptions.botocore.client.ClientError as e:
-        print(e.response["Error"]["Message"].strip("\""))
-
-# Create an ALB target group function
-
-
-def create_target_group():
-    tgname = input("Enter the name of the target group: ").strip()
-    list_inst()
-    inst1 = input("Enter the first instance for the group: ").strip()
-    inst2 = input("Enter the second instance for the group: ").strip()
-    inst3 = input("Enter the third instance for the group: ").strip()
-
-    try:
-        newtg = elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=myvpc)
-        tgarn = newtg["TargetGroups"][0]["TargetGroupArn"]
-        elbv2c.register_targets(TargetGroupArn=tgarn, Targets=[{"Id":inst1},{"Id":inst2},{"Id":inst3}])
-        print("Target group created. The target group name is {}".format(newtg["TargetGroups"][0]["TargetGroupName"]))
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
 
@@ -279,6 +269,46 @@ def delete_alb():
     try:
         elbv2c.delete_load_balancer(LoadBalancerArn=albarn)
         print("ALB {} deleted.".format(albname))
+    except boto3.exceptions.botocore.client.ClientError as e:
+        print(e.response["Error"]["Message"].strip("\""))
+
+# Create an ALB target group function
+
+
+def create_target_group():
+    tgname = input("Enter the name of the target group: ").strip()
+    list_inst()
+    inst1 = input("Enter the first instance for the group: ").strip()
+    inst2 = input("Enter the second instance for the group: ").strip()
+    inst3 = input("Enter the third instance for the group: ").strip()
+
+    try:
+        newtg = elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=myvpc)
+        tgarn = newtg["TargetGroups"][0]["TargetGroupArn"]
+        elbv2c.register_targets(TargetGroupArn=tgarn, Targets=[{"Id": inst1}, {"Id": inst2}, {"Id": inst3}])
+        print("Target group created. The target group name is {}".format(newtg["TargetGroups"][0]["TargetGroupName"]))
+    except boto3.exceptions.botocore.client.ClientError as e:
+        print(e.response["Error"]["Message"].strip("\""))
+
+# List ALB target groups function
+
+
+def list_target_groups():
+    listtg = elbv2c.describe_target_groups()
+
+    for tg in listtg["TargetGroups"]:
+        print("TG Name = {TargetGroupName}  ARN = {TargetGroupArn}".format(**tg))
+
+# Delete ALB target group function
+
+
+def delete_target_group():
+    tgname = input("Enter the name of the target group: ").strip()
+    tgarn = elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
+
+    try:
+        elbv2c.delete_target_group(TargetGroupArn=tgarn)
+        print("Target group {} deleted.".format(tgname))
     except boto3.exceptions.botocore.client.ClientError as e:
         print(e.response["Error"]["Message"].strip("\""))
 
@@ -395,6 +425,8 @@ if __name__ == "__main__":
                    "lalb": list_alb,
                    "dalb": delete_alb,
                    "ctg": create_target_group,
+                   "ltg": list_target_groups,
+                   "dtg": delete_target_group,
                    "ckey": create_keypair,
                    "lkey": list_keypair,
                    "dkey": delete_keypair,
