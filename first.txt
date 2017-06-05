@@ -1,2 +1,0 @@
-This is a test of a first file
-This would be the second line of the file

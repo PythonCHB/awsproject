@@ -104,13 +104,16 @@ runcmd:
 
 # Create new EC2 instances function
 
-    def create_inst(self, subid, instname):
+    def create_inst(self, subid, key, instname):
         self.subid = subid
+        self.mykey = key
         self.instname = instname
+        # waitrun = self.ec2c.get_waiter("instance_running")
 
         try:
             newinst = self.ec2c.run_instances(ImageId=self.myami, MinCount=1, MaxCount=1, KeyName=self.mykey, InstanceType=self.ec2type, SecurityGroupIds=[self.mysg], SubnetId=self.subid, UserData=self.userdata)
             self.ec2c.create_tags(Resources=[newinst["Instances"][0]["InstanceId"]], Tags=[{"Key": "Name", "Value": instname}])
+            # waitrun.wait(InstanceIds=[newinst["Instances"][0]["InstanceId"]])
             print("\nThe instance ID created was {} and is named {}".format(newinst["Instances"][0]["InstanceId"], self.instname))
             return(newinst["Instances"][0]["InstanceId"])
         except boto3.exceptions.botocore.client.ClientError as e:
@@ -176,19 +179,20 @@ runcmd:
 
 # Create an Application Load Balancer function
 
-    def create_alb(self, albname, sub1, sub2, sub3, tgname):
+    def create_alb(self, albname, sub1, sub2, sub3, tgarn):
         self.albname = albname
         self.sub1 = sub1
         self.sub2 = sub2
         self.sub3 = sub3
-        self.tgname = tgname
+        self.tgarn = tgarn
 
-        tgarn = self.elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
+        # tgarn = self.elbv2c.describe_target_groups(Names=[tgname])["TargetGroups"][0]["TargetGroupArn"]
 
         try:
             newalb = self.elbv2c.create_load_balancer(Name=albname, Subnets=[sub1, sub2, sub3], SecurityGroups=[self.mysg], Scheme="internet-facing", IpAddressType="ipv4")
             self.elbv2c.create_listener(LoadBalancerArn=newalb["LoadBalancers"][0]["LoadBalancerArn"], Protocol="HTTP", Port=80, DefaultActions=[{"Type": "forward", "TargetGroupArn": tgarn}])
             print("ALB created. The DNS name is {}".format(newalb["LoadBalancers"][0]["DNSName"]))
+            return(newalb["LoadBalancers"][0]["DNSName"])
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
@@ -227,6 +231,9 @@ runcmd:
         self.inst3 = inst3
 
         try:
+            print("Waiting for instances to start")
+            waitrun = self.ec2c.get_waiter("instance_running")
+            waitrun.wait(InstanceIds=[inst1, inst2, inst3])
             newtg = self.elbv2c.create_target_group(Name=tgname, Protocol="HTTP", Port=80, VpcId=self.myvpc)
             tgarn = newtg["TargetGroups"][0]["TargetGroupArn"]
             self.elbv2c.register_targets(TargetGroupArn=tgarn, Targets=[{"Id": inst1}, {"Id": inst2}, {"Id": inst3}])
@@ -267,7 +274,7 @@ runcmd:
             key = self.ec2c.create_key_pair(KeyName=keyname)
             print("\nKey pair created. The following is the key:\n")
             print(key["KeyMaterial"])
-            return(key["KeyMaterial"])
+            return(key["KeyName"])
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
