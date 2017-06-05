@@ -169,7 +169,10 @@ runcmd:
 
         try:
             self.ec2c.terminate_instances(InstanceIds=[instid])
-            print("Terminated instance {}".format(instid))
+            print("\nWaiting on instance to terminate")
+            waitterm = self.ec2c.get_waiter("instance_terminated")
+            waitterm.wait(InstanceIds=[instid])
+            print("\nTerminated instance {}".format(instid))
             return(instid)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
@@ -184,8 +187,8 @@ runcmd:
                 print(
                     "ID: {InstanceId} Type: {InstanceType} Name: "
                     "{Tags[0][Value]} State: {State[Name]}".format(**inst))
-                dcinst.update({inst["Tags"][0]["Value"]:
-                    inst["State"]["Name"]})
+                dcinst.update(
+                    {inst["Tags"][0]["Value"]: inst["State"]["Name"]})
         return(dcinst)
 
 # Rename an EC2 instance function
