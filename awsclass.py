@@ -50,7 +50,7 @@ runcmd:
  - service nginx start
 """
 
-# Create VPC subnet function
+# Create VPC subnet method. Returns the newly-created subnet ID.
 
     def create_subnet(self, subnetvar, az):
         self.subnetvar = subnetvar
@@ -70,7 +70,7 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Delete VPC subnet function
+# Delete VPC subnet method. Returns the newly-deleted subnet ID.
 
     def delete_subnet(self, subid):
         self.subid = subid
@@ -82,7 +82,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# List VPC subnets function
+# List VPC subnets method. Returns a dict of the subnet ID and corresponding
+# CIDR block.
 
     def list_subnets_all(self):
         listsub = self.ec2c.describe_subnets()
@@ -97,7 +98,8 @@ runcmd:
 
         return(lsdict)
 
-# List subnets for a particular AZ function
+# List subnets for a particular AZ method. Returns a dict of the subnet ID and
+# corresponding CIDR block for the AZ specified.
 
     def list_subnets_az(self, subaz):
         self.subaz = subaz
@@ -115,7 +117,7 @@ runcmd:
 
         return(lsdict)
 
-# Create new EC2 instances function
+# Create new EC2 instances method. Returns the newly-created instance ID.
 
     def create_inst(self, subid, key, instname):
         self.subid = subid
@@ -140,7 +142,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Start and stop EC2 instances functions
+# Start and stop EC2 instances methods. Returns the started or stopped
+# instance ID.
 
     def start_inst(self, instid):
         self.instid = instid
@@ -162,7 +165,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Terminate EC2 instances function
+# Terminate EC2 instances method. Returns the terminated instance ID. Uses a
+# waiter to wait for the instance to be fully terminated before continuing.
 
     def term_inst(self, instid):
         self.instid = instid
@@ -177,7 +181,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# List EC2 instances function
+# List EC2 instances method. Returns a dict of the instance ID with
+# corresponding name.
 
     def list_inst(self):
         listinst = self.ec2c.describe_instances()
@@ -191,7 +196,7 @@ runcmd:
                     {inst["Tags"][0]["Value"]: inst["State"]["Name"]})
         return(dcinst)
 
-# Rename an EC2 instance function
+# Rename an EC2 instance method. Returns the instance ID that was renamed.
 
     def ren_inst(self, instid, newname):
         self.instid = instid
@@ -206,7 +211,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Create an Application Load Balancer function
+# Create an Application Load Balancer method. Returns the DNS name of the
+# newly-created Application Load Balancer.
 
     def create_alb(self, albname, sub1, sub2, sub3, tgarn):
         self.albname = albname
@@ -234,7 +240,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# List Application Load Balancers function
+# List Application Load Balancers method. Returns a dict of the ALB Name with
+# its DNS name.
 
     def list_alb(self):
         listalb = self.elbv2c.describe_load_balancers()
@@ -248,7 +255,8 @@ runcmd:
 
         return(ladict)
 
-# Delete an Application Load Balancer function
+# Delete an Application Load Balancer method. Returns the ARN of the deleted
+# Application Load Balancer.
 
     def delete_alb(self, albname):
         self.albname = albname
@@ -263,7 +271,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Create an ALB target group function
+# Create an ALB target group method. Returns the ARN of the newly-created
+# ALB target group.
 
     def create_target_group(self, tgname, inst1, inst2, inst3):
         self.tgname = tgname
@@ -290,7 +299,7 @@ runcmd:
 
         return(tgarn)
 
-# List ALB target groups function
+# List ALB target groups method
 
     def list_target_groups(self):
         listtg = self.elbv2c.describe_target_groups()
@@ -300,7 +309,8 @@ runcmd:
                 "TG Name = {TargetGroupName}  "
                 "ARN = {TargetGroupArn}".format(**tg))
 
-# Delete ALB target group function
+# Delete ALB target group method. Returns the ARN of the deleted ALB target
+# group.
 
     def delete_target_group(self, tgname):
         self.tgname = tgname
@@ -315,7 +325,7 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Create a key pair function
+# Create a key pair method. Prints the key and returns the key name.
 
     def create_keypair(self, keyname):
         self.keyname = keyname
@@ -328,7 +338,8 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# List key pairs function
+# List key pairs method. Returns a dict of each key name with its corresponding
+# fingerprint.
 
     def list_keypair(self):
         listkey = self.ec2c.describe_key_pairs()
@@ -342,7 +353,7 @@ runcmd:
 
         return(dckey)
 
-# Delete a key pair
+# Delete a key pair method. Returns the deleted key name.
 
     def delete_keypair(self, keyname):
         self.keyname = keyname
@@ -354,7 +365,7 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Create S3 bucket function
+# Create S3 bucket method. Returns the location of the new S3 bucket.
 
     def create_bucket(self, buckname):
         self.buckname = buckname
@@ -372,7 +383,7 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# Delete S3 bucket function
+# Delete S3 bucket method. Returns the name of the deleted S3 bucket.
 
     def delete_bucket(self, buckname):
         self.buckname = buckname
@@ -386,7 +397,7 @@ runcmd:
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
 
-# List S3 buckets function
+# List S3 buckets method. Returns a list of all buckets.
 
     def list_buckets(self):
         listbuck = self.s3r.buckets.all()
@@ -398,7 +409,7 @@ runcmd:
         print("\nNumber of buckets: {}".format(len(lb)))
         return(lb)
 
-# List S3 files function
+# List S3 files function. Returns a dict of each file and corresponding bucket.
 
     def list_files(self):
         lsdict = {}
