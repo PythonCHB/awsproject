@@ -56,10 +56,12 @@ where EC2 Client and EC2 Resource classes exist, and both allow the creation of 
 the use of a Waiter function is helpful. An example is for creating an ALB target group. The target
 group can't be created until the required instances are in a "running" state. The Waiter function
 will pause the program until the instances reach that state.
+* Not all classes have a waiter, most notably the Application Load Balancer class.
 * The output of the methods is usually some lengthy JSON output, so it took patience to sift
 through the output to grab the values that were relevant to what I was trying to achieve.
 
 
 
 
-:pouting_cat:
+
+:smiley_cat:

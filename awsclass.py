@@ -173,7 +173,7 @@ runcmd:
 
         try:
             self.ec2c.terminate_instances(InstanceIds=[instid])
-            print("\nWaiting on instance to terminate")
+            print("\nWaiting on instance {} to terminate").format(instid)
             waitterm = self.ec2c.get_waiter("instance_terminated")
             waitterm.wait(InstanceIds=[instid])
             print("\nTerminated instance {}".format(instid))
@@ -409,7 +409,7 @@ runcmd:
         print("\nNumber of buckets: {}".format(len(lb)))
         return(lb)
 
-# List S3 files function. Returns a dict of each file and corresponding bucket.
+# List S3 files method. Returns a dict of each file and corresponding bucket.
 
     def list_files(self):
         lsdict = {}
