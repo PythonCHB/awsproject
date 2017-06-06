@@ -13,7 +13,7 @@ This program is a menu-driven AWS utility that performs the following:
 
 """
 
-# Import Modules
+# Import modules
 
 import boto3
 import sys
@@ -75,7 +75,8 @@ Type 'x' to exit
 
 """
 
-# User data for instance building
+# User data for building and instance that automatically installs and runs
+# nginx
 
 userdata = """#cloud-config
 repo_update: true
@@ -106,8 +107,8 @@ def help_menu():
 
 
 def create_subnet():
-    subnetvar = input("Enter the subnet: ").strip()
-    az = input("Enter the availability zone: ").strip()
+    subnetvar = input("Enter the subnet (Ex: 192.168.94.0/24): ").strip()
+    az = input("Enter the availability zone (Ex: us-west-2a): ").strip()
 
     try:
         newsub = vpc.create_subnet(CidrBlock=subnetvar, AvailabilityZone=az)
@@ -124,6 +125,7 @@ def create_subnet():
 
 
 def delete_subnet():
+    list_subnets_all()
     subid = input("Enter the subnet ID: ").strip()
 
     try:

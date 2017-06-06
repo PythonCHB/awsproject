@@ -13,7 +13,7 @@ This program is an AWS class utility that performs the following:
 
 """
 
-# Import Modules
+# Import modules
 
 import boto3
 from configparser import ConfigParser

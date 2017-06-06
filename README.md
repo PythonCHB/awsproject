@@ -1,4 +1,4 @@
-# AWS Project for UW PCE Python 300 class
+# AWS Project for UW PCE Python Py300 class
 
 The intent of this project is to utilize Python to administer resources in Amazon Web Services (AWS)
 With these tools, you can perform such functions as:
@@ -10,10 +10,16 @@ With these tools, you can perform such functions as:
 * Create, list, and delete EC2 keypair
 * Create, list and delete Application Load Balancers
 
+The programs use Python 3 with a module from Amazon called `boto3` which allows interfacing with
+AWS resources via Python.
+
 There are two main files for this project: `awstool.py` and `awsclass.py`.
 
 Both programs require certain default values to be added to the `credentials` file that is located in 
-the `<home>/.aws` directory. These values are as follows:
+the `<home>/.aws` directory. This file will already exist after running the `aws configure`
+command and will create the first three values. The other values can be added manually after the
+file is created.
+The required values are as follows:
 
 ```
 [default]
@@ -28,7 +34,29 @@ ec2type = <The EC2 instance type to be used for creating instances. Example: t2-
 
 ## awstool.py
 
-This is a command-line utility
+This is a command-line utility that will perform all the above-specified functions in AWS.
+The program begins with showing a help menu with available commands. Some functions require input
+that is required for that particular command. I find myself using this tool in my day-to-day
+functions at my job.
+
+## awsclass.py
+
+This file contains the `Aws()` class that takes the functions from `awstool.py` and makes them
+available in a class format. With these methods, one can easily orchestrate the creation and
+deletion of AWS objects. An example can be found in the `buildalb.py` file. This file will create
+the building blocks of an Application Load Balancer and then delete the elements. Clearly, these
+elements could be more easily created with CloudFormation and a well-crafted JSON file, but this
+project provided a good learning experience for using Python.
+
+## Lessons learned and challenges faced
+
+* With boto3, there are some redundant classes that causes confusion. An example would be for EC2,
+where EC2 Client and EC2 Resource classes exist, and both allow the creation of EC2 instances
+* Some resources can't be built until its dependent resources are fully online. For those situations,
+the use of a Waiter function is helpful. An example is for creating an ALB target group. The target
+group can't be created until the required instances are in a "running" state. The Waiter function
+will pause the program until the instances reach that state.
+
 
 
 :pouting_cat:
