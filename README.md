@@ -1,16 +1,7 @@
-# AWS Project
+# AWS Project for UW PCE Python 300 class
 
-I will add more text later.
+The intent of this project is to 
 
-For now, I want to make sure that this will look correct.
 
-Things to still work on:
-
-- [ ] Add function for ELB
-- [ ] Automatically install nginx on new instances
-- [ ] Create test environment
-- [ ] Use waiters?
-- [ ] Present availability zones as menu options?
 
 :pouting_cat:
-
