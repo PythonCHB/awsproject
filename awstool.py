@@ -463,6 +463,8 @@ if __name__ == "__main__":
 
     # Using dict as switch for calling menu items
 
+  ## CHB: nice use a dict to select your options!
+
     select_dict = {"csub": create_subnet,
                    "dsub": delete_subnet,
                    "lsub": list_subnets_all,
