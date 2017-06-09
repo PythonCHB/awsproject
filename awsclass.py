@@ -18,6 +18,7 @@ This program is an AWS class utility that performs the following:
 import boto3
 from configparser import ConfigParser
 
+##CHB: nice use of ConfigParser
 
 class Aws():
     def __init__(self):
@@ -69,6 +70,7 @@ runcmd:
             return(newsub.id)
         except boto3.exceptions.botocore.client.ClientError as e:
             print(e.response["Error"]["Message"].strip("\""))
+ ##CHB: Do you really want to just print the message and move on??
 
 # Delete VPC subnet method. Returns the newly-deleted subnet ID.
 
